@@ -1,6 +1,7 @@
 import glob
 
 import numpy as np
+import torch.nn as nn
 
 GRAY_IMAGES = ['data/ILSVRC2014_DET_train/ILSVRC2014_train_0000/ILSVRC2014_train_00008823.JPEG',
           'data/ILSVRC2014_DET_train/ILSVRC2014_train_0000/ILSVRC2014_train_00000278.JPEG',

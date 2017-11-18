@@ -36,7 +36,8 @@ class ColorizationDataset(data.Dataset):
 class ImageColorizer(nn.Module):
     def __init__(self, n_outputs, temperature=0.38):
         super(ImageColorizer, self).__init__()
-        self.n_classes = n_classes
+        self.n_outputs = n_outputs
+        self.temperature = temperature
         
         self.moduleList = nn.ModuleList()
         self.moduleList.append(self.conv_block(1, 64, 2, downsample=True))
@@ -48,8 +49,7 @@ class ImageColorizer(nn.Module):
         self.moduleList.append(self.conv_block(512, 512, 3))
         self.moduleList.append(self.deconv_block())
                          
-        self.conv_class = nn.Conv2d(256, n_outputs, 1)
-        self.temperature = temperature
+        self.conv_class = nn.Conv2d(256, n_outputs, 1)  
         
     def conv_block(self, in_dim, out_dim, n_convs, dilation=1, padding=1, downsample=False):
         block = []
