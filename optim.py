@@ -48,6 +48,12 @@ def train_model_class(model, optimizer, loader, class_weights, num_epochs=10, sh
 
 
 def train_model_reg(model, optimizer, loader, num_epochs=10, show_every=20):
+    losses = []
+    for input, label in iter(loader):
+        zero_pred = torch.zeros(label.size())
+        losses.append(F.mse_loss(zero_pred, label))
+    print('Average: {}'.format(np.mean(losses)))
+    
     for epoch in range(num_epochs):
         print('Epoch %s' % epoch)
         print('=' * 10)
@@ -59,7 +65,7 @@ def train_model_reg(model, optimizer, loader, num_epochs=10, show_every=20):
             output = model(input)
             
             optimizer.zero_grad()
-            loss = F.mse_loss(output, labels)
+            loss = F.l1_loss(output, labels)
             
             loss.backward()
             optimizer.step()
@@ -105,13 +111,10 @@ def predict_reg(model, dset):
     out = model(input).squeeze(0)
 
     out_actual = out.data.numpy()
-    out_actual = zoom(out_actual, (1, 4, 4))
-    pred = np.concatenate((L, out_actual), axis=0).transpose(1, 2, 0).clip(-128, 128)
+    out_actual = zoom(out_actual, (1, 4, 4)).clip(-1, 1)
+    pred = out_actual * 256 - 128
+    pred = np.concatenate((L, out_actual), axis=0).transpose(1, 2, 0)
     pred = color.lab2rgb(pred.astype(np.float64))
-    
-    plt.figure()
-    plt.title('Grayscale')
-    plt.imshow(L.squeeze(0), cmap='gray')
     
     plt.figure()
     plt.title('Predicted')

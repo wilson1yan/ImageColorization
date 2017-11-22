@@ -33,9 +33,9 @@ class ColorizationDataset(data.Dataset):
     def __len__(self):
         return len(self.img_names)
 
-class ImageColorizer(nn.Module):
+class ImageColorizer1(nn.Module):
     def __init__(self, n_outputs, temperature=0.38):
-        super(ImageColorizer, self).__init__()
+        super(ImageColorizer1, self).__init__()
         self.n_outputs = n_outputs
         self.temperature = temperature
         
@@ -49,7 +49,10 @@ class ImageColorizer(nn.Module):
         self.moduleList.append(self.conv_block(512, 512, 3))
         self.moduleList.append(self.deconv_block())
                          
-        self.conv_class = nn.Conv2d(256, n_outputs, 1)  
+        self.conv_class = nn.Conv2d(256, n_outputs, 1)
+        self.bn = nn.BatchNorm2d(n_outputs)
+        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
         
     def conv_block(self, in_dim, out_dim, n_convs, dilation=1, padding=1, downsample=False):
         block = []
@@ -75,6 +78,7 @@ class ImageColorizer(nn.Module):
         block.append(nn.ReLU(inplace=True))
         block.append(nn.Conv2d(256, 256, 3, padding=1))
         block.append(nn.ReLU(inplace=True))
+        block.append(nn.BatchNorm2d(256))
         return nn.Sequential(*block)
     
     def forward(self, input):
@@ -82,5 +86,7 @@ class ImageColorizer(nn.Module):
             input = m(input)
 
         input = self.conv_class(input)
-        input *= 1 / self.temperature        
+        # input *= 1 / self.temperature  
+        # input = self.bn(input)
+        input = self.sigmoid(input)
         return input

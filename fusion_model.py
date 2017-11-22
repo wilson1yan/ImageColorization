@@ -1,20 +1,21 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class FusionColorizer(nn.Module):
-    def __init__(self):
+    def __init__(self, n_classes):
         super(FusionColorizer, self).__init__()
         self.low_level_net = LowLevelNet()
         self.mid_level_net = MidLevelNet()
         self.global_feat_net = GlobalFeaturesNet()
-        self.class_net = ClassificationNet()
+        self.class_net = ClassificationNet(n_classes)
         self.fusion_net = FusionNet()
         self.color_net = ColorNet()
  
-    def forward(self, input, input_scaled):
+    def forward(self, input, input_scaled, train=True):
         out = self.low_level_net(input)
+        out_scaled = out.clone() if train else self.low_level_net(input_scaled)
         out = self.mid_level_net(out)
-        out_scaled = self.low_level_net(input_scaled)
         out_class, out_scaled = self.global_feat_net(out_scaled)
         class_scores = self.class_net(out_class)
         
@@ -76,7 +77,7 @@ class GlobalFeaturesNet(nn.Module):
         self.fc2 = nn.Linear(1024, 512)
         self.bn6 = nn.BatchNorm1d(512)
         self.fc3 = nn.Linear(512, 256)
-        self.bn6 = nn.BatchNorm1d(256)
+        self.bn7 = nn.BatchNorm1d(256)
     
     def forward(self, input):
         out = F.relu(self.bn1(self.conv1(input)))
@@ -99,7 +100,7 @@ class ClassificationNet(nn.Module):
 
     def forward(self, input):
         out = F.relu(self.bn1(self.fc1(input)))
-        out = F.log_softmax(self.bn2(self.fc2(out)))
+        out = self.bn2(self.fc2(out))
         return out
     
 class FusionNet(nn.Module):
@@ -110,13 +111,13 @@ class FusionNet(nn.Module):
     
     def forward(self, out_mid, out_global):
         b, _, w, h = out_mid.size()
-        out_global = out_global.unsqueeze(0).unsqueeze(0)
+        out_global = out_global.unsqueeze(2).unsqueeze(2)
         out_global = out_global.repeat(1, 1, w, h)
         fusion = torch.cat((out_mid, out_global), 1)
         fusion = fusion.permute(2, 3, 0, 1).contiguous()
         fusion = fusion.view(-1, 512)
         fusion = self.bn(self.fc(fusion))
-        fusion = fusion.view(w, h, b, 512)
+        fusion = fusion.view(w, h, b, 256)
         fusion = fusion.permute(2, 3, 0, 1).contiguous()
         return fusion
         
@@ -124,7 +125,7 @@ class FusionNet(nn.Module):
 class ColorNet(nn.Module):
     def __init__(self):
         super(ColorNet, self).__init__()
-        self.upsample = nn.UpsamplingNearest2d(scale_factor=2)
+        self.upsample = nn.Upsample(scale_factor=2)
         self.conv1 = nn.Conv2d(256, 128, 3, padding=1)
         self.bn1 = nn.BatchNorm2d(128)
         self.conv2 = nn.Conv2d(128, 64, 3, padding=1)
@@ -137,8 +138,7 @@ class ColorNet(nn.Module):
         self.bn5 = nn.BatchNorm2d(2)
     
     def forward(self, input):
-        out = self.upsample(input)
-        out = F.relu(self.bn1(self.conv1(out)))
+        out = F.relu(self.bn1(self.conv1(input)))
         out = self.upsample(out)
         out = F.relu(self.bn2(self.conv2(out)))
         out = F.relu(self.bn3(self.conv3(out)))
@@ -147,4 +147,3 @@ class ColorNet(nn.Module):
         out = F.sigmoid(self.bn5(self.conv5(out)))
         out = self.upsample(out)
         return out
-        
