@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.ndimage import zoom
 from skimage import color
 
 def train_model_class(model, optimizer, loader, class_weights, num_epochs=10, show_every=20):
@@ -91,7 +90,6 @@ def predict_class(model, dset, cat2ab):
         for j in range(out_actual.shape[2]):
             a, b = cat2ab[out[i, j]]
             out_actual[:, i, j] = [a + 5, b + 5]
-    out_actual = zoom(out_actual, (1, 4, 4))
     pred = np.concatenate((L, out_actual), axis=0).transpose(1, 2, 0).clip(-128, 128)
     pred = color.lab2rgb(pred.astype(np.float64))
     
